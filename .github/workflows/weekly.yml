@@ -1,0 +1,46 @@
+name: Ricerca settimanale psychomotricien
+
+on:
+  schedule:
+    - cron: "47 5 * * 1"   # lunedì 05:47 UTC (≈ 07:47 a Ginevra)
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Solo report nei log, senza invio email"
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+jobs:
+  search:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Cerca e invia
+        env:
+          GMAIL_USER: ${{ secrets.GMAIL_USER }}
+          GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
+          MAIL_TO: ${{ secrets.MAIL_TO }}
+        run: |
+          if [ "${{ inputs.dry_run }}" = "true" ]; then
+            python search.py --dry-run --html report.html
+          else
+            python search.py --html report.html
+          fi
+      - uses: actions/upload-artifact@v4
+        with:
+          name: report
+          path: report.html
+      - name: Salva stato (offerte già viste)
+        if: ${{ inputs.dry_run != true }}
+        run: |
+          git config user.name "job-search-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add state.json
+          git diff --cached --quiet || git commit -m "Aggiorna state.json ($(date -u +%F))"
+          git push
