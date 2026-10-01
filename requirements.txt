@@ -1,0 +1,1 @@
+# solo libreria standard: nessuna dipendenza esterna
